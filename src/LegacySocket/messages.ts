@@ -1,10 +1,11 @@
 import { Boom } from '@hapi/boom'
+import internal from 'stream'
 import { proto } from '../../WAProto'
 import { WA_DEFAULT_EPHEMERAL } from '../Defaults'
-import { AnyMessageContent, Chat, GroupMetadata, LegacySocketConfig, MediaConnInfo, MessageUpdateType, MessageUserReceipt, MessageUserReceiptUpdate, MiscMessageGenerationOptions, ParticipantAction, WAFlag, WAMessage, WAMessageCursor, WAMessageKey, WAMessageStatus, WAMessageStubType, WAMessageUpdate, WAMetric, WAUrlInfo } from '../Types'
+import { AnyMessageContent, Chat, GroupMetadata, LegacySocketConfig, MediaConnInfo, MessageUpdateType, MessageUserReceipt, MessageUserReceiptUpdate, MiscMessageGenerationOptions, ParticipantAction, WAFlag, WAMediaUploadFunction, WAMessage, WAMessageCursor, WAMessageKey, WAMessageStatus, WAMessageStubType, WAMessageUpdate, WAMetric, WAUrlInfo } from '../Types'
 import { downloadMediaMessage, generateWAMessage, getWAUploadToServer, MediaDownloadOptions, normalizeMessageContent, toNumber } from '../Utils'
 import { areJidsSameUser, BinaryNode, getBinaryNodeMessages, isJidGroup, jidNormalizedUser } from '../WABinary'
-import makeChatsSocket from './chats'
+import makeChatsSocket, { LegacyChatsSocket } from './chats'
 
 const STATUS_MAP = {
 	read: WAMessageStatus.READ,
@@ -12,7 +13,20 @@ const STATUS_MAP = {
 	error: WAMessageStatus.ERROR
 } as { [_: string]: WAMessageStatus }
 
-const makeMessagesSocket = (config: LegacySocketConfig) => {
+export type LegacyMessagesSocket = LegacyChatsSocket & {
+	relayMessage: (message: WAMessage, { waitForAck }?: { waitForAck: boolean; }) => Promise<void>;
+	waUploadToServer: WAMediaUploadFunction;
+	generateUrlInfo: (text: string) => Promise<WAUrlInfo>;
+	messageInfo: (jid: string, messageID: string) => Promise<proto.IUserReceipt[]>;
+	downloadMediaMessage: (message: WAMessage, type?: 'buffer' | 'stream', options?: MediaDownloadOptions) => Promise<Buffer | internal.Transform>;
+	updateMediaMessage: (message: WAMessage) => Promise<BinaryNode>;
+	fetchMessagesFromWA: (jid: string, count: number, cursor?: WAMessageCursor) => Promise<proto.WebMessageInfo[]>;
+	loadMessageFromWA: (jid: string, id: string) => Promise<proto.WebMessageInfo>;
+	searchMessages: (txt: string, inJid: string | null, count: number, page: number) => Promise<{ last: boolean; messages: proto.WebMessageInfo[]; }>;
+	sendMessage: (jid: string, content: AnyMessageContent, options?: MiscMessageGenerationOptions & { waitForAck?: boolean; }) => Promise<proto.WebMessageInfo>;
+}
+
+const makeMessagesSocket: (config: LegacySocketConfig) => LegacyMessagesSocket = (config: LegacySocketConfig) => {
 	const { logger } = config
 	const sock = makeChatsSocket(config)
 	const {

@@ -1,9 +1,24 @@
 import { GroupMetadata, ParticipantAction, SocketConfig } from '../Types'
 import { generateMessageID } from '../Utils'
 import { BinaryNode, getBinaryNodeChild, getBinaryNodeChildren, jidEncode, jidNormalizedUser } from '../WABinary'
-import { makeSocket } from './socket'
+import { makeSocket, Socket } from './socket'
 
-export const makeGroupsSocket = (config: SocketConfig) => {
+export type GroupsSocket = Socket & {
+	groupMetadata: (jid: string) => Promise<GroupMetadata>,
+	groupCreate: (subject: string, participants: string[]) => Promise<GroupMetadata>;
+	groupLeave: (id: string) => Promise<void>;
+	groupUpdateSubject: (jid: string, subject: string) => Promise<void>;
+	groupParticipantsUpdate: (jid: string, participants: string[], action: ParticipantAction) => Promise<string[]>;
+	groupUpdateDescription: (jid: string, description?: string) => Promise<void>;
+	groupInviteCode: (jid: string) => Promise<string>;
+	groupRevokeInvite: (jid: string) => Promise<string>;
+	groupAcceptInvite: (code: string) => Promise<string>;
+	groupToggleEphemeral: (jid: string, ephemeralExpiration: number) => Promise<void>;
+	groupSettingUpdate: (jid: string, setting: 'announcement' | 'not_announcement' | 'locked' | 'unlocked') => Promise<void>;
+	groupFetchAllParticipating: () => Promise<{ [_: string]: GroupMetadata }>;
+}
+
+export const makeGroupsSocket: (config: SocketConfig) => GroupsSocket = (config: SocketConfig) => {
 	const sock = makeSocket(config)
 	const { query } = sock
 

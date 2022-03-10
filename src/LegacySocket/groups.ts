@@ -1,9 +1,20 @@
 import { GroupMetadata, GroupModificationResponse, GroupParticipant, LegacySocketConfig, ParticipantAction, WAFlag, WAGroupCreateResponse, WAMetric } from '../Types'
 import { generateMessageID, unixTimestampSeconds } from '../Utils/generics'
 import { BinaryNode, jidNormalizedUser } from '../WABinary'
-import makeMessagesSocket from './messages'
+import makeMessagesSocket, { LegacyMessagesSocket } from './messages'
 
-const makeGroupsSocket = (config: LegacySocketConfig) => {
+export type LegacyGroupsSocket = LegacyMessagesSocket & {
+	groupMetadata: (jid: string, minimal: boolean) => Promise<GroupMetadata>;
+	groupCreate: (title: string, participants: string[]) => Promise<GroupMetadata>;
+	groupLeave: (id: string) => Promise<void>;
+	groupUpdateSubject: (id: string, title: string) => Promise<void>;
+	groupUpdateDescription: (jid: string, description: string) => Promise<{ status: number; }>;
+	groupParticipantsUpdate: (id: string, participants: string[], action: ParticipantAction) => Promise<string[]>;
+	getBroadcastListInfo: (jid: string) => Promise<GroupMetadata>;
+	groupInviteCode: (jid: string) => Promise<string>;
+}
+
+const makeGroupsSocket: (config: LegacySocketConfig) => LegacyGroupsSocket = (config: LegacySocketConfig) => {
 	const { logger } = config
 	const sock = makeMessagesSocket(config)
 	const {

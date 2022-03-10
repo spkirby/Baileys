@@ -5,10 +5,16 @@ import { Chat, GroupMetadata, MessageUserReceipt, ParticipantAction, SocketConfi
 import { decodeMessageStanza, downloadAndProcessHistorySyncNotification, encodeBigEndian, generateSignalPubKey, normalizeMessageContent, toNumber, xmppPreKey, xmppSignedPreKey } from '../Utils'
 import { makeKeyedMutex, makeMutex } from '../Utils/make-mutex'
 import { areJidsSameUser, BinaryNode, BinaryNodeAttributes, getAllBinaryNodeChildren, getBinaryNodeChildren, isJidGroup, jidDecode, jidEncode, jidNormalizedUser } from '../WABinary'
-import { makeChatsSocket } from './chats'
+import { ChatsSocket, makeChatsSocket } from './chats'
 import { extractGroupMetadata } from './groups'
 
-export const makeMessagesRecvSocket = (config: SocketConfig) => {
+export type MessagesRecvSocket = ChatsSocket & {
+	processMessage: (message: proto.IWebMessageInfo, chatUpdate: Partial<Chat>) => Promise<void>,
+	sendMessageAck: ({ tag, attrs }: BinaryNode, extraAttrs: BinaryNodeAttributes) => Promise<void>,
+	sendRetryRequest: (node: BinaryNode) => Promise<void>
+}
+
+export const makeMessagesRecvSocket: (config: SocketConfig) => MessagesRecvSocket = (config: SocketConfig) => {
 	const { logger } = config
 	const sock = makeChatsSocket(config)
 	const {

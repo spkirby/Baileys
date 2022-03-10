@@ -1,9 +1,17 @@
 import { LegacySocketConfig, OrderDetails } from '../Types'
 import { CatalogResult, Product, ProductCreate, ProductCreateResult, ProductUpdate } from '../Types'
 import { uploadingNecessaryImages } from '../Utils/business'
-import makeGroupsSocket from './groups'
+import makeGroupsSocket, { LegacyGroupsSocket } from './groups'
 
-const makeBusinessSocket = (config: LegacySocketConfig) => {
+export type LegacyBusinessSocket = LegacyGroupsSocket & {
+	getOrderDetails: (orderId: string, tokenBase64: string) => Promise<OrderDetails>;
+	getCatalog: (jid?: string, limit?: number) => Promise<{ beforeCursor: string; products: Product[]; }>;
+	productCreate: (product: ProductCreate) => Promise<Product>;
+	productDelete: (productIds: string[]) => Promise<{ deleted: any; }>;
+	productUpdate: (productId: string, update: ProductUpdate) => Promise<Product>;
+}
+
+const makeBusinessSocket: (config: LegacySocketConfig) => LegacyBusinessSocket = (config: LegacySocketConfig) => {
 	const sock = makeGroupsSocket(config)
 	const {
 		query,

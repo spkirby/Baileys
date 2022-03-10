@@ -1,10 +1,19 @@
-import { ProductCreate, ProductUpdate, SocketConfig } from '../Types'
+import { CatalogCollection, OrderDetails, Product, ProductCreate, ProductUpdate, SocketConfig } from '../Types'
 import { parseCatalogNode, parseCollectionsNode, parseOrderDetailsNode, parseProductNode, toProductNode, uploadingNecessaryImagesOfProduct } from '../Utils/business'
 import { jidNormalizedUser, S_WHATSAPP_NET } from '../WABinary'
 import { getBinaryNodeChild } from '../WABinary/generic-utils'
-import { makeMessagesRecvSocket } from './messages-recv'
+import { makeMessagesRecvSocket, MessagesRecvSocket } from './messages-recv'
 
-export const makeBusinessSocket = (config: SocketConfig) => {
+export type BusinessSocket = MessagesRecvSocket & {
+	getOrderDetails: (orderId: string, tokenBase64: string) => Promise<OrderDetails>;
+	getCatalog: (jid?: string, limit?: number) => Promise<{ products: Product[]; }>;
+	getCollections: (jid?: string, limit?: number) => Promise<{ collections: CatalogCollection[]; }>;
+	productCreate: (create: ProductCreate) => Promise<Product>;
+	productDelete: (productIds: string[]) => Promise<{ deleted: number; }>;
+	productUpdate: (productId: string, update: ProductUpdate) => Promise<Product>
+}
+
+export const makeBusinessSocket: (config: SocketConfig) => BusinessSocket = (config: SocketConfig) => {
 	const sock = makeMessagesRecvSocket(config)
 	const {
 		authState,

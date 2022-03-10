@@ -1,9 +1,26 @@
 import { BaileysEventMap, Chat, ChatModification, Contact, LegacySocketConfig, PresenceData, WABusinessProfile, WAFlag, WAMessageKey, WAMessageUpdate, WAMetric, WAPresence } from '../Types'
 import { debouncedTimeout, unixTimestampSeconds } from '../Utils/generics'
 import { BinaryNode, jidNormalizedUser } from '../WABinary'
-import makeAuthSocket from './auth'
+import makeAuthSocket, { LegacyAuthSocket } from './auth'
 
-const makeChatsSocket = (config: LegacySocketConfig) => {
+export type LegacyChatsSocket = LegacyAuthSocket & {
+	sendChatsQuery: (epoch: number) => Promise<string>;
+	profilePictureUrl: (jid: string, timeoutMs?: number) => Promise<string>;
+	chatRead: (fromMessage: WAMessageKey, count: number) => Promise<void>;
+	chatModify: (modification: ChatModification, jid: string, chatInfo: Pick<Chat, 'mute' | 'pin'>, timestampNow?: number) => Promise<void | { status: number; }>;
+	onWhatsApp: (str: string) => Promise<{ exists: boolean; jid: string; isBusiness: boolean; }>;
+	sendPresenceUpdate: (type: WAPresence, jid: string | undefined) => Promise<string>;
+	presenceSubscribe: (jid: string) => Promise<string>;
+	getStatus: (jid: string) => Promise<{ status: string; }>;
+	setStatus: (status: string) => Promise<{ status: number; }>;
+	updateBusinessProfile: (profile: WABusinessProfile) => Promise<void>;
+	updateProfileName: (name: string) => Promise<{ status: number; pushname: string; }>;
+	updateProfilePicture(jid: string, img: Buffer): Promise<void>;
+	blockUser: (jid: string, type?: 'add' | 'remove') => Promise<void>;
+	getBusinessProfile: (jid: string) => Promise<WABusinessProfile>
+}
+
+const makeChatsSocket: (config: LegacySocketConfig) => LegacyChatsSocket = (config: LegacySocketConfig) => {
 	const { logger } = config
 	const sock = makeAuthSocket(config)
 	const {

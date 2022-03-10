@@ -4,11 +4,27 @@ import { AppStateChunk, Chat, ChatModification, ChatMutation, Contact, LTHashSta
 import { chatModificationToAppPatch, decodePatches, decodeSyncdSnapshot, encodeSyncdPatch, extractSyncdPatches, generateProfilePicture, newLTHashState, toNumber } from '../Utils'
 import { makeMutex } from '../Utils/make-mutex'
 import { BinaryNode, getBinaryNodeChild, getBinaryNodeChildren, jidNormalizedUser, reduceBinaryNodeToDictionary, S_WHATSAPP_NET } from '../WABinary'
-import { makeMessagesSocket } from './messages-send'
+import { makeMessagesSocket, MessagesSocket } from './messages-send'
 
 const MAX_SYNC_ATTEMPTS = 5
 
-export const makeChatsSocket = (config: SocketConfig) => {
+export type ChatsSocket = MessagesSocket & {
+	appPatch: (patchCreate: WAPatchCreate) => Promise<void>,
+	sendPresenceUpdate: (type: WAPresence, toJid?: string) => Promise<void>,
+	presenceSubscribe: (toJid: string) => Promise<void>,
+	profilePictureUrl: (jid: string, type?: 'preview' | 'image', timeoutMs?: number) => Promise<string>,
+	onWhatsApp: (...jids: string[]) => Promise<{ exists: boolean; jid: string; }[]>,
+	fetchBlocklist: () => Promise<string[]>,
+	fetchStatus: (jid: string) => Promise<{ status: string; setAt: Date; }>,
+	updateProfilePicture: (jid: string, content: WAMediaUpload) => Promise<void>,
+	updateBlockStatus: (jid: string, action: 'block' | 'unblock') => Promise<void>,
+	getBusinessProfile: (jid: string) => Promise<WABusinessProfile | void>,
+	resyncAppState: (collections: WAPatchName[]) => Promise<AppStateChunk>,
+	chatModify: (mod: ChatModification, jid: string) => Promise<void>,
+	resyncMainAppState: () => Promise<void>,
+}
+
+export const makeChatsSocket: (config: SocketConfig) => ChatsSocket = (config: SocketConfig) => {
 	const { logger } = config
 	const sock = makeMessagesSocket(config)
 	const {

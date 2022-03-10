@@ -2,12 +2,23 @@
 import NodeCache from 'node-cache'
 import { proto } from '../../WAProto'
 import { WA_DEFAULT_EPHEMERAL } from '../Defaults'
-import { AnyMessageContent, MediaConnInfo, MessageRelayOptions, MiscMessageGenerationOptions, SocketConfig } from '../Types'
+import { AnyMessageContent, MediaConnInfo, MessageRelayOptions, MiscMessageGenerationOptions, SocketConfig, WAMediaUploadFunction } from '../Types'
 import { encodeWAMessage, encryptSenderKeyMsgSignalProto, encryptSignalProto, extractDeviceJids, generateMessageID, generateWAMessage, getWAUploadToServer, jidToSignalProtocolAddress, parseAndInjectE2ESessions } from '../Utils'
 import { BinaryNode, BinaryNodeAttributes, getBinaryNodeChild, getBinaryNodeChildren, isJidGroup, jidDecode, jidEncode, jidNormalizedUser, JidWithDevice, reduceBinaryNodeToDictionary, S_WHATSAPP_NET } from '../WABinary'
-import { makeGroupsSocket } from './groups'
+import { GroupsSocket, makeGroupsSocket } from './groups'
 
-export const makeMessagesSocket = (config: SocketConfig) => {
+export type MessagesSocket = GroupsSocket & {
+	assertSessions: (jids: string[], force: boolean) => Promise<boolean>,
+	relayMessage: (jid: string, message: proto.IMessage, options: MessageRelayOptions) => Promise<string>,
+	sendReceipt: (jid: string, participant: string | undefined, messageIds: string[], type: 'read' | 'read-self' | undefined) => Promise<void>,
+	sendReadReceipt: (jid: string, participant: string | undefined, messageIds: string[]) => Promise<void>,
+	refreshMediaConn: (forceGet?: boolean) => Promise<MediaConnInfo>,
+	waUploadToServer: WAMediaUploadFunction,
+	fetchPrivacySettings: (force?: boolean) => Promise<{ [_: string]: string; }>,
+	sendMessage: (jid: string, content: AnyMessageContent, options?: MiscMessageGenerationOptions) => Promise<proto.WebMessageInfo>;
+}
+
+export const makeMessagesSocket: (config: SocketConfig) => MessagesSocket = (config: SocketConfig) => {
 	const { logger } = config
 	const sock = makeGroupsSocket(config)
 	const {

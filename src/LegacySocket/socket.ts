@@ -429,3 +429,5 @@ export const makeSocket = ({
 		end
 	}
 }
+
+export type LegacySocket = ReturnType<typeof makeSocket>

@@ -1,10 +1,19 @@
 import { Boom } from '@hapi/boom'
 import EventEmitter from 'events'
-import { ConnectionState, CurveKeyPair, DisconnectReason, LegacyBaileysEventEmitter, LegacySocketConfig, WAInitResponse } from '../Types'
+import { ConnectionState, CurveKeyPair, DisconnectReason, LegacyAuthenticationCreds, LegacyBaileysEventEmitter, LegacySocketConfig, WAInitResponse } from '../Types'
 import { bindWaitForConnectionUpdate, computeChallengeResponse, Curve, newLegacyAuthCreds, printQRIfNecessaryListener, validateNewConnection } from '../Utils'
-import { makeSocket } from './socket'
+import { LegacySocket, makeSocket } from './socket'
 
-const makeAuthSocket = (config: LegacySocketConfig) => {
+export type LegacyAuthSocket = LegacySocket & {
+	state: ConnectionState,
+	authInfo: LegacyAuthenticationCreds,
+	ev: LegacyBaileysEventEmitter,
+	canLogin: () => boolean,
+	logout: () => Promise<void>,
+	waitForConnectionUpdate: (check: (u: Partial<ConnectionState>) => boolean, timeoutMs?: number) => Promise<void>
+}
+
+const makeAuthSocket: (config: LegacySocketConfig) => LegacyAuthSocket = (config: LegacySocketConfig) => {
 	const {
 		logger,
 		version,
